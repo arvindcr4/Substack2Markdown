@@ -32,7 +32,7 @@ Clone the repo and install the dependencies:
 git clone https://github.com/yourusername/substack_scraper.git
 cd substack_scraper
 
-# # Optinally create a virtual environment
+# # Optionally create a virtual environment
 # python -m venv venv
 # # Activate the virtual environment
 # .\venv\Scripts\activate  # Windows
@@ -41,7 +41,7 @@ cd substack_scraper
 pip install -r requirements.txt
 ```
 
-For the premium scraper, update the `config.py` in the root directory with your Substack email and password:
+For the premium scraper, copy `config_template.py` to `config.py` and update it with your Substack email and password:
 
 ```python
 EMAIL = "your-email@domain.com"
