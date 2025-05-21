@@ -487,8 +487,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--headless",
         action="store_true",
-        help="Include -h in command to run browser in headless mode when using the Premium Substack "
-        "Scraper.",
+        help="Include --headless to run the browser in headless mode when using the Premium Substack Scraper.",
     )
     # Keeping these arguments for backward compatibility
     parser.add_argument(
