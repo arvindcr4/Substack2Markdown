@@ -14,9 +14,7 @@ from xml.etree import ElementTree as ET
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-from selenium.webdriver.edge.options import Options as EdgeOptions
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.safari.options import Options as SafariOptions
 from urllib.parse import urlparse
 from config import EMAIL, PASSWORD
 
@@ -367,26 +365,24 @@ class PremiumSubstackScraper(BaseSubstackScraper):
             md_save_dir: str,
             html_save_dir: str,
             headless: bool = False,
-            edge_path: str = '',
-            edge_driver_path: str = '',
+            chrome_path: str = None,
+            chrome_driver_path: str = None,
             user_agent: str = ''
     ) -> None:
         super().__init__(base_substack_url, md_save_dir, html_save_dir)
 
-        options = EdgeOptions()
-        if headless:
-            options.add_argument("--headless")
-        if edge_path:
-            options.binary_location = edge_path
+        options = SafariOptions()
+        # Safari doesn't support headless mode natively
+        # Also doesn't need binary location
+
+        # Still use user agent if provided
         if user_agent:
-            options.add_argument(f'user-agent={user_agent}')  # Pass this if running headless and blocked by captcha
+            options.set_capability('safari:options', {
+                'userAgent': user_agent
+            })
 
-        if edge_driver_path:
-            service = Service(executable_path=edge_driver_path)
-        else:
-            service = Service(EdgeChromiumDriverManager().install())
-
-        self.driver = webdriver.Edge(service=service, options=options)
+        # Safari driver is pre-installed on macOS
+        self.driver = webdriver.Safari(options=options)
         self.login()
 
     def login(self) -> None:
@@ -394,24 +390,53 @@ class PremiumSubstackScraper(BaseSubstackScraper):
         This method logs into Substack using Selenium
         """
         self.driver.get("https://substack.com/sign-in")
-        sleep(3)
-
-        signin_with_password = self.driver.find_element(
-            By.XPATH, "//a[@class='login-option substack-login__login-option']"
-        )
-        signin_with_password.click()
-        sleep(3)
-
-        # Email and password
-        email = self.driver.find_element(By.NAME, "email")
-        password = self.driver.find_element(By.NAME, "password")
-        email.send_keys(EMAIL)
-        password.send_keys(PASSWORD)
-
-        # Find the submit button and click it.
-        submit = self.driver.find_element(By.XPATH, "//*[@id=\"substack-login\"]/div[2]/div[2]/form/button")
-        submit.click()
-        sleep(30)  # Wait for the page to load
+        sleep(5)  # Increased sleep time
+        
+        print("Attempting to log in to Substack...")
+        
+        try:
+            print("Looking for sign-in with password option...")
+            signin_with_password = self.driver.find_element(
+                By.XPATH, "//a[@class='login-option substack-login__login-option']"
+            )
+            signin_with_password.click()
+            print("Clicked sign-in with password option")
+            sleep(5)  # Increased sleep time
+        except Exception as e:
+            print(f"Error finding sign-in option: {e}")
+            print("Attempting to continue anyway - form might be visible directly")
+            
+        try:
+            # Email and password
+            print("Looking for email and password fields...")
+            email = self.driver.find_element(By.NAME, "email")
+            password = self.driver.find_element(By.NAME, "password")
+            
+            print(f"Entering email: {EMAIL}")
+            email.send_keys(EMAIL)
+            print(f"Entering password: {'*' * len(PASSWORD)}")
+            password.send_keys(PASSWORD)
+            
+            # Try different XPaths for the submit button
+            print("Looking for submit button...")
+            try:
+                submit = self.driver.find_element(By.XPATH, "//*[@id=\"substack-login\"]/div[2]/div[2]/form/button")
+                print("Found submit button by original XPath")
+            except:
+                try:
+                    submit = self.driver.find_element(By.XPATH, "//button[@type='submit']")
+                    print("Found submit button by type=submit")
+                except:
+                    submit = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Sign in')]")
+                    print("Found submit button by text content")
+                    
+            submit.click()
+            print("Clicked submit button")
+            sleep(30)  # Wait for the page to load
+        except Exception as e:
+            print(f"Error during login process: {e}")
+            print("Current page source (first 1000 chars):")
+            print(self.driver.page_source[:1000])
 
         if self.is_login_failed():
             raise Exception(
@@ -465,17 +490,18 @@ def parse_args() -> argparse.Namespace:
         help="Include -h in command to run browser in headless mode when using the Premium Substack "
         "Scraper.",
     )
+    # Keeping these arguments for backward compatibility
     parser.add_argument(
-        "--edge-path",
+        "--chrome-path",
         type=str,
-        default="",
-        help='Optional: The path to the Edge browser executable (i.e. "path_to_msedge.exe").',
+        default=None,
+        help='Not used with Safari webdriver',
     )
     parser.add_argument(
-        "--edge-driver-path",
+        "--chrome-driver-path",
         type=str,
-        default="",
-        help='Optional: The path to the Edge WebDriver executable (i.e. "path_to_msedgedriver.exe").',
+        default=None,
+        help='Not used with Safari webdriver',
     )
     parser.add_argument(
         "--user-agent",
@@ -524,8 +550,8 @@ def main():
                 base_substack_url=BASE_SUBSTACK_URL,
                 md_save_dir=args.directory,
                 html_save_dir=args.html_directory,
-                edge_path=args.edge_path,
-                edge_driver_path=args.edge_driver_path
+                chrome_path=args.chrome_path,
+                chrome_driver_path=args.chrome_driver_path
             )
         else:
             scraper = SubstackScraper(

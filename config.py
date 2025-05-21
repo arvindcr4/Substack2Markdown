@@ -1,2 +1,2 @@
-EMAIL = "your-email@domain.com"
-PASSWORD = "your-password"
+EMAIL = "arvindcr4@gmail.com"
+PASSWORD = "siddarth"
